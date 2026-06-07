@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# ==========================================
+# ARMOR PLATE 1: Setup & Safe Logging
+# ==========================================
+APP_DIR="$HOME/.local/state/yt_cli"
+LOG_FILE="$APP_DIR/yt.log"
+
+# Safely create directory; if it fails, fallback to /tmp
+mkdir -p "$APP_DIR" 2>/dev/null || APP_DIR="/tmp"
+LOG_FILE="$APP_DIR/yt.log"
+
+log_action() {
+    # High-precision timestamps, direct append
+    echo "$(date '+%Y-%m-%d %H:%M:%S.%N') - $1" >> "$LOG_FILE"
+}
+
+# ==========================================
+# ARMOR PLATE 2: Dependency Pre-Flight Check
+# ==========================================
+# If any required tool is missing, fail loud and tell the user exactly what is wrong.
+for cmd in yt-dlp fzf mpv awk; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "CRITICAL ERROR: The command '$cmd' is not installed or not in PATH."
+        log_action "FATAL: Missing dependency - $cmd"
+        exit 1
+    fi
+done
+
+# ==========================================
+# ARMOR PLATE 3: Dynamic Temp Files & Traps
+# ==========================================
+# Use mktemp so we NEVER have file permission conflicts or overwrite existing files.
+TEMP_FILE=$(mktemp -t yt_search_XXXXXX.txt)
+
+# The TRAP: If you hit Ctrl+C, or the script crashes, or it exits normally,
+# this guarantees the temp file is deleted from your system. No ghost files left behind.
+trap 'rm -f "$TEMP_FILE"' EXIT INT TERM HUP
+
+DELIM=" | "
+
+# ==========================================
+# ARMOR PLATE 4: Safe Input Handling
+# ==========================================
+query="$*"
+if [ -z "$query" ]; then
+    # -r prevents backslashes from breaking the input
+    read -r -p "Search: " query
+    # If still empty (user just hit Enter), exit safely
+    [ -z "$query" ] && exit 0
+fi
+log_action "SEARCH: '$query'"
+
+# ==========================================
+# ARMOR PLATE 5: Isolated Network Execution
+# ==========================================
+# -v : Keep debug logs going to the file
+# --ignore-config : Bypasses slow NodeJS global configs
+# --socket-timeout 5 : Prevents infinite network hangs
+# --force-ipv4 : Bypasses IPv6 latency
+# || true : If yt-dlp fails to fetch 1 out of 10 videos, it normally exits with an error code. '|| true' prevents it from crashing the script.
+yt-dlp -v --ignore-config --no-update --socket-timeout 5 --force-ipv4 --quiet --no-warnings --print "%(title)s${DELIM}%(webpage_url)s" "ytsearch10:$query" > "$TEMP_FILE" 2>>"$LOG_FILE" || true
+
+# ==========================================
+# ARMOR PLATE 6: Data Integrity Check
+# ==========================================
+# -s checks if the file exists AND is not empty
+if [ ! -s "$TEMP_FILE" ]; then
+    log_action "ERROR: No results returned from yt-dlp. Network/API issue."
+    echo "Error: Could not fetch results from YouTube. Check ~/.local/state/yt_cli/yt.log"
+    exit 1
+fi
+
+# ==========================================
+# ARMOR PLATE 7: Safe Pipe to UI
+# ==========================================
+selection=$(cat "$TEMP_FILE" | fzf)
+
+if [ -z "$selection" ]; then
+    log_action "CANCEL: User pressed ESC."
+    # Trap handles file cleanup automatically
+    exit 0
+fi
+
+# ==========================================
+# ARMOR PLATE 8: Foolproof Parsing
+# ==========================================
+# Instead of splitting by delimiter (which can break if a video title has a '|' in it),
+# we extract $NF (the very last word of the string).
+# Since URLs cannot contain spaces, the last word is mathematically guaranteed to be the URL.
+video_url=$(echo "$selection" | awk '{print $NF}')
+log_action "SELECTED: $video_url"
+
+# ==========================================
+# ARMOR PLATE 9: Quoted Execution
+# ==========================================
+# Single quotes around mpv arguments prevent Bash from interpreting brackets [ ] as code.
+mpv --ytdl-raw-options='ignore-config=,format=best[height<=1080],force-ipv4=' --force-window=immediate --cache-secs=1 --vo=gpu "$video_url" >> "$LOG_FILE" 2>&1
