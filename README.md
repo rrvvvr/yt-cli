@@ -3,36 +3,40 @@
 [![License: SSPL](https://img.shields.io/badge/License-SSPL-blue.svg)](https://www.mongodb.com/licensing/server-side-public-license)
 [![Dependencies](https://img.shields.io/badge/dependencies-yt--dlp%2C%20fzf%2C%20mpv-orange)](https://github.com/rrvvvr/yt-cli)
 
+A minimal terminal-based YouTube browser built using a Unix pipeline of `yt-dlp`, `fzf`, and `mpv`.
+
+---
+
 ## Overview
 
-`yt-cli` is a POSIX shell script that provides a terminal interface for searching and playing YouTube videos. It is intended as a lightweight alternative to using the YouTube website directly.
+`yt-cli` is a POSIX shell script that provides a terminal interface for searching and playing YouTube videos. It is designed as a lightweight alternative to the standard YouTube web interface.
 
-The YouTube web interface requires a browser, JavaScript execution, and renders significant amounts of page content unrelated to video playback. `yt-cli` replaces that interaction with a minimal terminal workflow: search, select, and play.
+The YouTube website requires a browser, JavaScript execution, and renders significant amounts of content unrelated to video playback. `yt-cli` replaces that workflow with a minimal terminal interaction: search, select, and play.
 
 ---
 
 ## Features
 
-- Search YouTube from the terminal
-- Browse results interactively using fuzzy search
-- Play selected videos directly via `mpv`
-- No browser or web UI required
+* Search YouTube from the terminal
+* Interactive result selection using fuzzy search
+* Direct playback via `mpv`
+* No browser or graphical interface required
 
 ---
 
 ## How It Works
 
-`yt-cli` connects three existing command-line tools in a Unix pipeline:
+`yt-cli` composes three existing command-line tools into a pipeline:
 
 ```
-yt-dlp  -->  fzf  -->  mpv
+yt-dlp  →  fzf  →  mpv
 ```
 
-1. **`yt-dlp`** queries YouTube and returns video metadata (titles, URLs, and related identifiers).
-2. **`fzf`** receives that metadata and displays it as an interactive, filterable list in the terminal.
-3. **`mpv`** receives the selected video URL and handles playback.
+1. **`yt-dlp`** retrieves video metadata and stream URLs
+2. **`fzf`** presents an interactive, filterable selection interface
+3. **`mpv`** handles playback of the selected video
 
-The script itself contains no media logic. It coordinates input and output between these three tools.
+The script coordinates data flow between these tools rather than implementing media functionality directly.
 
 ---
 
@@ -42,9 +46,9 @@ The script itself contains no media logic. It coordinates input and output betwe
 
 The following tools must be installed and available in your `$PATH`:
 
-- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) — fetches video metadata and stream URLs
-- [`fzf`](https://github.com/junegunn/fzf) — interactive terminal selection
-- [`mpv`](https://mpv.io/) — video playback
+* [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
+* [`fzf`](https://github.com/junegunn/fzf)
+* [`mpv`](https://mpv.io/)
 
 ### Setup
 
@@ -57,7 +61,7 @@ cp yt ~/.local/bin/yt
 chmod +x ~/.local/bin/yt
 ```
 
-Ensure `~/.local/bin` is in your `$PATH`. Add the following to your `.bashrc` or `.zshrc` if it is not already present:
+Ensure `~/.local/bin` is in your `$PATH`:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
@@ -67,7 +71,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ## Usage
 
-Run the script from any terminal:
+Run from any terminal:
 
 ```bash
 yt
@@ -75,38 +79,52 @@ yt
 
 **Workflow:**
 
-1. Type a search query at the prompt.
-2. Use the arrow keys or `Ctrl+N` / `Ctrl+P` to move through results.
-3. Press `Enter` to play the selected video in `mpv`.
+1. Enter a search query
+2. Navigate results using the keyboard
+3. Press `Enter` to play the selected video in `mpv`
 
 ---
 
 ## Design Decisions
 
-### CLI over web UI
+### CLI over Web UI
 
-A shell script has a smaller resource footprint than a browser-based interface. For users who spend most of their time in the terminal, a CLI workflow avoids switching contexts to a browser.
+A terminal-based workflow reduces resource usage and avoids context switching for users already working in a shell environment.
 
-### Unix pipeline
+### Unix Pipeline
 
-Rather than implementing search or playback directly, `yt-cli` delegates each task to a dedicated tool. This keeps the script short, makes each component independently replaceable, and relies on tools that are already well-tested and maintained upstream.
+Each component performs a single task:
+
+* `yt-dlp` for data retrieval
+* `fzf` for selection
+* `mpv` for playback
+
+This keeps the system modular and leverages well-maintained external tools.
 
 ### Scope
 
-`yt-cli` is intentionally narrow in scope. It handles search and playback only. Features such as account integration, playlist management, and download management are outside the current scope.
+`yt-cli` intentionally focuses on search and playback only. It does not attempt to replicate the full YouTube feature set.
 
 ---
 
 ## Limitations
 
-- **No account integration:** The tool does not support YouTube login. Personalized recommendations, subscriptions, and watch history are not available.
-- **External dependencies:** The tool depends on `yt-dlp`, `fzf`, and `mpv`. If any of these are unavailable or change in a breaking way, the script will stop working.
-- **Platform breakage:** YouTube periodically changes its internal structure. When this happens, `yt-dlp` may stop returning results until it is updated. Run `yt-dlp -U` to update it.
-- **Codec and hardware support:** Playback quality and format support depend on the `mpv` build and the host system's available hardware acceleration.
-- **Terminal environment required:** This tool has no graphical interface and requires a terminal emulator to run.
+* No account integration (subscriptions, recommendations, history)
+* Depends on external tools (`yt-dlp`, `fzf`, `mpv`)
+* May break if upstream tools or YouTube APIs change
+* No playlist management or persistent state
+* Requires a terminal environment
+
+---
+
+## Non-Goals
+
+* Replacing full-featured media platforms
+* Providing a graphical interface
+* Supporting account-based or personalized features
 
 ---
 
 ## License
 
-This project is licensed under the **Server Side Public License (SSPL) v1**. See the `LICENSE` file for the full license text.
+This project is licensed under the **Server Side Public License (SSPL) v1**. See the `LICENSE` file for details.
